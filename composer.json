@@ -1,0 +1,28 @@
+{
+  "name": "furqansiddiqui/semaphore-emulator-php",
+  "description": "Semaphore emulator PHP for resource locking",
+  "type": "library",
+  "homepage": "https://www.furqansiddiqui.com/",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Furqan A. Siddiqui",
+      "email": "hello@furqansiddiqui.com",
+      "homepage": "https://www.furqansiddiqui.com",
+      "role": "Author"
+    }
+  ],
+  "require": {
+    "php": "^7.2",
+    "ext-openssl": "*",
+    "comely-io/filesystem": "^1.0.13"
+  },
+  "autoload": {
+    "psr-4": {
+      "FurqanSiddiqui\\SemaphoreEmulator\\": [
+        "src"
+      ]
+    }
+  },
+  "minimum-stability": "dev"
+}
