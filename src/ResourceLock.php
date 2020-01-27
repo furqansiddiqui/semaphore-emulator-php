@@ -82,6 +82,17 @@ class ResourceLock
     }
 
     /**
+     * @return void
+     */
+    public function setAutoRelease(): void
+    {
+        $resourceLock = $this;
+        register_shutdown_function(function () use ($resourceLock) {
+            $resourceLock->release();
+        });
+    }
+
+    /**
      * @return float|null
      */
     public function lastTimestamp(): ?float
