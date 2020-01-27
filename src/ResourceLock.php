@@ -21,6 +21,8 @@ class ResourceLock
     private $fp;
     /** @var null|float */
     private $lastTimestamp;
+    /** @var bool */
+    private $autoReleaseSet;
 
     /**
      * ResourceLock constructor.
@@ -39,6 +41,7 @@ class ResourceLock
 
         $this->emulator = $emulator;
         $this->isLocked = false;
+        $this->autoReleaseSet = false;
 
         $lockFilePath = $this->emulator->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
         $fp = fopen($lockFilePath, "c+");
@@ -86,10 +89,17 @@ class ResourceLock
      */
     public function setAutoRelease(): void
     {
+        if ($this->autoReleaseSet) {
+            return;
+
+        }
+
         $resourceLock = $this;
         register_shutdown_function(function () use ($resourceLock) {
             $resourceLock->release();
         });
+
+        $this->autoReleaseSet = true;
     }
 
     /**
