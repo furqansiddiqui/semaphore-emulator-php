@@ -17,8 +17,6 @@ class ResourceLock
     private $emulator;
     /** @var bool */
     private $isLocked;
-    /** @var string */
-    private $lockFilePath;
     /** @var false|resource */
     private $fp;
     /** @var null|float */
@@ -41,9 +39,9 @@ class ResourceLock
 
         $this->emulator = $emulator;
         $this->isLocked = false;
-        $this->lockFilePath = $this->emulator->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
 
-        $fp = @fopen($this->lockFilePath, "w+");
+        $lockFilePath = $this->emulator->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
+        $fp = fopen($lockFilePath, "c+");
         if (!$fp) {
             throw new ResourceLockException('Cannot get lock file pointer resource');
         }
@@ -52,25 +50,33 @@ class ResourceLock
             intval($concurrentReqInterval * 10 ^ 6) : null;
 
         $timer = time();
-        while (!@flock($fp, LOCK_EX)) {
-            if (!$concurrentSleep) {
-                throw new ConcurrentRequestBlocked('Concurrent request blocked');
-            }
-
-            usleep($concurrentSleep);
-            if ($concurrentReqTimeout > 0) {
-                if ((time() - $timer) >= $concurrentReqTimeout) {
-                    throw new ConcurrentRequestTimeout('Concurrent request timed out');
+        while (true) {
+            if (!flock($fp, LOCK_EX | LOCK_NB)) {
+                if (!$concurrentSleep) {
+                    throw new ConcurrentRequestBlocked('Concurrent request blocked');
                 }
+
+                usleep($concurrentSleep);
+                if ($concurrentReqTimeout > 0) {
+                    if ((time() - $timer) >= $concurrentReqTimeout) {
+                        throw new ConcurrentRequestTimeout('Concurrent request timed out');
+                    }
+                }
+
+                continue;
             }
+
+            break;
         }
 
-        $this->lastTimestamp = @fread($fp, 15);
-        if ($this->lastTimestamp) {
-            $this->lastTimestamp = floatval($this->lastTimestamp);
+        $lastTimestamp = fread($fp, 15);
+        if ($lastTimestamp) {
+            $this->lastTimestamp = floatval($lastTimestamp);
         }
 
-        @fwrite($fp, strval(microtime(true)));
+        ftruncate($fp, 0);
+        fseek($fp, 0, SEEK_SET);
+        fwrite($fp, strval(microtime(true)));
         $this->isLocked = true;
         $this->fp = $fp;
     }
@@ -114,11 +120,11 @@ class ResourceLock
         }
 
         $this->isLocked = false;
-        $unlock = @flock($this->fp, LOCK_UN);
+        $unlock = flock($this->fp, LOCK_UN);
         if (!$unlock) {
             throw new ResourceLockException('Could not unlock resource lock file');
         }
 
-        @fclose($this->fp);
+        fclose($this->fp);
     }
 }
