@@ -21,8 +21,12 @@ class ResourceLock
     private $fp;
     /** @var null|float */
     private $lastTimestamp;
+    /** @var string */
+    private $lockFilepath;
     /** @var bool */
     private $autoReleaseSet;
+    /** @var bool */
+    private $deleteFileOnRelease;
 
     /**
      * ResourceLock constructor.
@@ -42,9 +46,10 @@ class ResourceLock
         $this->emulator = $emulator;
         $this->isLocked = false;
         $this->autoReleaseSet = false;
+        $this->deleteFileOnRelease = false;
 
-        $lockFilePath = $this->emulator->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
-        $fp = fopen($lockFilePath, "c+");
+        $this->lockFilepath = $this->emulator->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
+        $fp = fopen($this->lockFilepath, "c+");
         if (!$fp) {
             throw new ResourceLockException('Cannot get lock file pointer resource');
         }
@@ -82,6 +87,15 @@ class ResourceLock
         fwrite($fp, strval(microtime(true)));
         $this->isLocked = true;
         $this->fp = $fp;
+    }
+
+    /**
+     * @return $this
+     */
+    public function deleteFileOnRelease(): self
+    {
+        $this->deleteFileOnRelease = true;
+        return $this;
     }
 
     /**
@@ -147,5 +161,9 @@ class ResourceLock
         }
 
         fclose($this->fp);
+
+        if ($this->deleteFileOnRelease) {
+            unlink($this->lockFilepath);
+        }
     }
 }
