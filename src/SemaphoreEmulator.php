@@ -13,7 +13,7 @@ use FurqanSiddiqui\SemaphoreEmulator\Exception\SemaphoreEmulatorException;
 class SemaphoreEmulator
 {
     /** @var Directory */
-    private $dir;
+    private Directory $dir;
 
     /**
      * SemaphoreEmulator constructor.
@@ -23,9 +23,9 @@ class SemaphoreEmulator
     public function __construct(Directory $lockFilesDirectory)
     {
         $this->dir = $lockFilesDirectory;
-        if (!$this->dir->permissions()->write()) {
+        if (!$this->dir->permissions()->writable()) {
             throw new SemaphoreEmulatorException('Semaphore emulator directory is not writable');
-        } elseif (!$this->dir->permissions()->read()) {
+        } elseif (!$this->dir->permissions()->readable()) {
             throw new SemaphoreEmulatorException('Semaphore emulator directory is not readable');
         }
     }

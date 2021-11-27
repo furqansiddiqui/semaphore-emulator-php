@@ -13,49 +13,42 @@ use FurqanSiddiqui\SemaphoreEmulator\Exception\ResourceLockException;
  */
 class ResourceLock
 {
-    /** @var SemaphoreEmulator */
-    private $emulator;
     /** @var bool */
-    private $isLocked;
+    private bool $isLocked = false;
     /** @var false|resource */
-    private $fp;
+    private mixed $fp;
     /** @var null|float */
-    private $lastTimestamp;
+    private ?float $lastTimestamp = null;
     /** @var string */
-    private $lockFilepath;
+    private string $lockFilepath;
     /** @var bool */
-    private $autoReleaseSet;
+    private bool $autoReleaseSet = false;
     /** @var bool */
-    private $deleteFileOnRelease;
+    private bool $deleteFileOnRelease = false;
 
     /**
-     * ResourceLock constructor.
-     * @param SemaphoreEmulator $emulator
+     * @param SemaphoreEmulator $sE
      * @param string $resourceIdentifier
      * @param float|null $concurrentReqInterval
      * @param int $concurrentReqTimeout
      * @throws ConcurrentRequestBlocked
+     * @throws ConcurrentRequestTimeout
      * @throws ResourceLockException
      */
-    public function __construct(SemaphoreEmulator $emulator, string $resourceIdentifier, ?float $concurrentReqInterval = null, int $concurrentReqTimeout = 30)
+    public function __construct(private SemaphoreEmulator $sE, string $resourceIdentifier, ?float $concurrentReqInterval = null, int $concurrentReqTimeout = 30)
     {
         if (!preg_match('/^\w+$/', $resourceIdentifier)) {
             throw new \InvalidArgumentException('Invalid resource identifier for semaphore emulator');
         }
 
-        $this->emulator = $emulator;
-        $this->isLocked = false;
-        $this->autoReleaseSet = false;
-        $this->deleteFileOnRelease = false;
-
-        $this->lockFilepath = $this->emulator->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
+        $this->lockFilepath = $this->sE->dir()->suffix(sprintf("%s.lock", $resourceIdentifier));
         $fp = fopen($this->lockFilepath, "c+");
         if (!$fp) {
             throw new ResourceLockException('Cannot get lock file pointer resource');
         }
 
         $concurrentSleep = $concurrentReqInterval && $concurrentReqInterval > 0 ?
-            intval($concurrentReqInterval * 10 ^ 6) : null;
+            $concurrentReqInterval * 10 ^ 6 : null;
 
         $timer = time();
         while (true) {
@@ -100,6 +93,7 @@ class ResourceLock
 
     /**
      * @return void
+     * @noinspection PhpDocMissingThrowsInspection
      */
     public function setAutoRelease(): void
     {
@@ -110,6 +104,7 @@ class ResourceLock
 
         $resourceLock = $this;
         register_shutdown_function(function () use ($resourceLock) {
+            /** @noinspection PhpUnhandledExceptionInspection */
             $resourceLock->release();
         });
 
@@ -154,12 +149,12 @@ class ResourceLock
             return;
         }
 
-        $this->isLocked = false;
         $unlock = flock($this->fp, LOCK_UN);
         if (!$unlock) {
             throw new ResourceLockException('Could not unlock resource lock file');
         }
 
+        $this->isLocked = false;
         fclose($this->fp);
 
         if ($this->deleteFileOnRelease) {
